@@ -127,13 +127,15 @@ public class TelegramService {
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(String.valueOf(chatId));
             sendMessage.setText("""
-                    🔒 Access Required
+                    🔒 Subscription Required
                     
-                    Your account does not currently have
-                    permission for the requested action.
-
-                    Please use /start or contact Admin / Owner
-                    to assign the required story access.
+                    Your free access or subscription
+                    is currently unavailable.
+                    
+                    To continue listening to stories,
+                    please activate a subscription.
+                    
+                    👑 Please Contact Admin
                     """);
 
             if (rewardTrialService.isEnabled()) {
@@ -378,9 +380,9 @@ public class TelegramService {
 
             String text = message.getText().trim();
 
-            // Manual story-assignment model: subscription, trial and reward
-            // access commands are intentionally disabled in this deployment.
-            String accessCommand = text.split("\\s+", 2)[0].toLowerCase();
+            // This deployment uses OWNER/ADMIN story assignment only.
+            // Subscription, trial and reward commands are intentionally disabled.
+            String disabledAccessCommand = text.split("\\s+", 2)[0].toLowerCase();
 
             if (Set.of(
                     "/reward",
@@ -393,17 +395,18 @@ public class TelegramService {
                     "/expiredusers",
                     "/trialonsubscription",
                     "/trialoffsubscription")
-                    .contains(accessCommand)) {
+                    .contains(disabledAccessCommand)) {
 
                 sendMessage(bot, chatId, """
-                        ℹ️ Subscription / trial / reward access is disabled.
+                        ℹ️ Subscription, trial and reward access are disabled.
 
-                        👑 OWNER has all-story unlimited access.
-                        🛡 ADMIN can use OWNER-assigned stories.
-                        👤 USER can use stories assigned by OWNER / ADMIN.
+                        👑 OWNER: all stories + unlimited usage
+                        🛡 ADMIN: OWNER-assigned stories
+                        👤 USER: OWNER/ADMIN-assigned stories
                         """);
                 return;
             }
+
 
             // =====================================
             // REWARDED 1-HOUR FREE ACCESS
@@ -559,7 +562,7 @@ public class TelegramService {
             // Episode requests are checked separately above.
             // =====================================
 
-            boolean active = true; // Access is enforced per story, not by subscription.
+            boolean active = telegramUser != null;
 
             if (!active) {
                 sendSubscriptionRequiredMessage(bot, chatId, userMessageId);
@@ -714,7 +717,7 @@ public class TelegramService {
 
             rows.add(row1);
 
-            if (false && isNormalUser(user) && rewardTrialService.isEnabled() && !rewardTrialService.hasActiveRewardTrial(user) && !subscriptionService.hasActiveSubscription(user) && !globalTrialService.hasGlobalTrialAccess(user)) {
+            if (isNormalUser(user) && rewardTrialService.isEnabled() && !rewardTrialService.hasActiveRewardTrial(user) && !subscriptionService.hasActiveSubscription(user) && !globalTrialService.hasGlobalTrialAccess(user)) {
 
                 KeyboardRow rewardRow = new KeyboardRow();
                 rewardRow.add("🎁 Get 1 Hour Free");
@@ -814,7 +817,7 @@ public class TelegramService {
                     
                     💬 Contact Admin for:
                     
-                    • Story Access
+                    • Subscription
                     • Support
                     • Episode Issues
                     • Story Requests
@@ -1260,7 +1263,7 @@ public class TelegramService {
             // NON-BROWSE CALLBACK ACCESS CHECK
             // =====================================
 
-            boolean active = true; // Access is enforced per story, not by subscription.
+            boolean active = user != null;
 
             if (!active) {
                 sendSubscriptionRequiredMessage(bot, chatId, messageId);
@@ -4512,18 +4515,36 @@ public class TelegramService {
                 return;
             }
 
-            // Story names are public; episode delivery is authorized by
-            // the manual OWNER/ADMIN story assignment model below.
+            // Story names are public, but audio requests require BOTH:
+            // 1) an active access source, and
+            // 2) permission for this exact story.
+            if (requestingUser == null) {
+                sendSubscriptionRequiredMessage(bot, chatId, null);
+                return;
+            }
 
             if (!storyAccessService.hasEpisodeAccess(requestingUser, story)) {
 
                 searchStoryContext.remove(chatId);
 
-                sendMessage(bot, chatId, """
-                        🔒 You don't have access to this story.
+                String selectedRewardStory = rewardTrialService
+                        .getSelectedRewardStory(requestingUser)
+                        .map(Story::getTitle)
+                        .orElse("");
 
-                        Please contact Admin / Owner to assign this story.
-                        """);
+                if (!selectedRewardStory.isBlank()
+                        && rewardTrialService.hasActiveRewardTrial(requestingUser)) {
+                    sendRewardStoryMismatchMessage(bot, chatId, requestingUser);
+                } else {
+                    sendMessage(bot, chatId, """
+                            🔒 You don't have access to this story.
+
+                            You can browse all story names, but episode access
+                            is available only for stories assigned to you.
+
+                            Please contact Admin / Owner for story access.
+                            """);
+                }
 
                 return;
             }
@@ -5370,14 +5391,41 @@ public class TelegramService {
     }
 
     /**
-     * Manual-access quota model:
-     * OWNER / ADMIN -> unlimited.
-     * USER          -> standard safety quota.
+     * Resolves the effective episode limit policy for the user's CURRENT
+     * access source. All numeric limits live in EpisodeLimitPolicy.
+     * <p>
+     * Priority for normal USER accounts:
+     * 1. Paid / manual subscription -> STANDARD_USER
+     * 2. Global trial               -> STANDARD_USER
+     * 3. Short-link 1-hour reward   -> REWARD_TRIAL
+     * 4. No current access source   -> STANDARD_USER (access gate blocks use)
+     * <p>
+     * ADMIN / OWNER are unlimited.
      */
     private EpisodeLimitPolicy getEpisodeLimitPolicy(TelegramUser user) {
 
         if (user == null || user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.OWNER) {
             return EpisodeLimitPolicy.ADMIN_OWNER;
+        }
+
+        if (user.getRole() != UserRole.USER) {
+            return EpisodeLimitPolicy.ADMIN_OWNER;
+        }
+
+        // Paid plans and individual/manual FREE trials are represented by
+        // an active Subscription and always use the standard USER quota.
+        if (subscriptionService.hasActiveSubscription(user)) {
+            return EpisodeLimitPolicy.STANDARD_USER;
+        }
+
+        // Global trial takes priority if it is active while an old reward
+        // row still exists. This keeps the standard USER quota.
+        if (globalTrialService.hasGlobalTrialAccess(user)) {
+            return EpisodeLimitPolicy.STANDARD_USER;
+        }
+
+        if (rewardTrialService.hasActiveRewardTrial(user)) {
+            return EpisodeLimitPolicy.REWARD_TRIAL;
         }
 
         return EpisodeLimitPolicy.STANDARD_USER;
@@ -5543,7 +5591,25 @@ public class TelegramService {
 
             for (Episode episode : episodes) {
 
-                // Re-check the manual story assignment before every audio.
+                // Re-check access before every audio.
+                // If OWNER disables the global free trial while a
+                // 50-episode batch is already being sent, a normal
+                // USER must stop receiving files immediately.
+                if (requestingUser == null) {
+
+                    log.info("Episode batch stopped because access ended telegramId={} storyId={} sentCount={}", requestingUser != null ? requestingUser.getTelegramId() : null, story.getId(), sentCount);
+
+                    sendMessage(bot, chatId, """
+                            ⛔ Access Ended
+                            
+                            Your free trial/subscription is no longer active.
+                            
+                            Remaining episodes were not sent.
+                            """);
+
+                    return;
+                }
+
                 if (!storyAccessService.hasEpisodeAccess(requestingUser, story)) {
 
                     log.info("Episode batch stopped because story access ended telegramId={} storyId={} sentCount={}", requestingUser != null ? requestingUser.getTelegramId() : null, story.getId(), sentCount);

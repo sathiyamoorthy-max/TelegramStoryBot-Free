@@ -66,14 +66,9 @@ public class TelegramUserService {
 
                 // The configured bot owner must always retain OWNER role,
                 // even if an older database row was created with USER/ADMIN.
-                if (telegramConfig.getOwnerId() != null && telegramId.equals(telegramConfig.getOwnerId())) {
+                if (telegramConfig.getOwnerId() != null && telegramId.equals(telegramConfig.getOwnerId()) && existingUser.getRole() != UserRole.OWNER) {
 
                     existingUser.setRole(UserRole.OWNER);
-
-                } else if (telegramConfig.isConfiguredAdmin(telegramId)
-                        && existingUser.getRole() != UserRole.ADMIN) {
-
-                    existingUser.setRole(UserRole.ADMIN);
                 }
 
                 TelegramUser savedUser = telegramUserRepository.save(existingUser);

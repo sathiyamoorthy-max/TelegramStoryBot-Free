@@ -62,11 +62,13 @@ public class StoryAccessService {
     }
 
     /**
-     * Final listening authorization for manual story assignment.
+     * Final listening authorization for this independent deployment.
      *
      * OWNER -> every story.
      * ADMIN -> only OWNER-assigned stories.
-     * USER  -> only active mappings assigned by OWNER/ADMIN.
+     * USER  -> only stories assigned by OWNER/ADMIN.
+     *
+     * Subscription, global-trial and reward state are intentionally ignored.
      */
     public boolean hasEpisodeAccess(TelegramUser user, Story story) {
         return hasStoryAccess(user, story);

@@ -25,7 +25,7 @@ public class TelegramConfig {
     @Value("${telegram.owner.id}")
     private Long ownerId;
 
-    @Value("${telegram.owner.username:owner}")
+    @Value("${telegram.owner.username}")
     private String ownerUsername;
 
     @Value("${telegram.admin.ids:}")
@@ -38,7 +38,6 @@ public class TelegramConfig {
 
         for (String rawId : adminIds.split(",")) {
             String value = rawId == null ? "" : rawId.trim();
-
             if (value.isBlank()) {
                 continue;
             }
