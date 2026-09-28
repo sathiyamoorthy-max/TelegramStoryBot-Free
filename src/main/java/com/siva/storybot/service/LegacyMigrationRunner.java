@@ -40,7 +40,7 @@ public class LegacyMigrationRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
 
-        if (!enabled) {
+        if (!enabled || Boolean.parseBoolean(System.getenv().getOrDefault("LEGACY_DB_SUSPEND", "true"))) {
             return;
         }
 
