@@ -25,16 +25,16 @@ public class LegacyMigrationRunner implements ApplicationRunner {
 
     private final DataSource targetDataSource;
 
-    @Value("${legacy.migration.enabled:false}")
+    @Value("${LEGACY_DB_MIGRATE:false}")
     private boolean enabled;
 
-    @Value("${legacy.datasource.url:}")
+    @Value("${LEGACY_DB_URL:}")
     private String sourceUrl;
 
-    @Value("${legacy.datasource.username:}")
+    @Value("${LEGACY_DB_USERNAME:}")
     private String sourceUsername;
 
-    @Value("${legacy.datasource.password:}")
+    @Value("${LEGACY_DB_PASSWORD:}")
     private String sourcePassword;
 
     @Override
