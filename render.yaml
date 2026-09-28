@@ -1,6 +1,7 @@
 services:
   - type: web
-    name: telegram-storybot-free
+    name: telegramstorybot-free-sg
+    region: singapore
     runtime: docker
     plan: free
     autoDeploy: true
