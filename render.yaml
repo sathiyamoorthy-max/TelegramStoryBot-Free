@@ -9,17 +9,17 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_BOT_USERNAME
-        sync: false
+        value: Pocketdownbot
       - key: TELEGRAM_OWNER_ID
-        sync: false
+        value: "1000931167"
       - key: TELEGRAM_OWNER_USERNAME
-        sync: false
+        value: toonworldvsm2
       - key: TELEGRAM_ADMIN_IDS
-        value: ""
+        value: "1000931167,5115013713"
       - key: DB_URL
         sync: false
       - key: DB_USERNAME
-        sync: false
+        value: telegramstorybot_free_db_user
       - key: DB_PASSWORD
         sync: false
       - key: JPA_DDL_AUTO
