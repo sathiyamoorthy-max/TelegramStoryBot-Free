@@ -3362,69 +3362,32 @@ public class TelegramService {
                 → Shows users, 50 per page.
 
                 /userdetails @username
-                → Shows role, access, plan and story count.
-                Example: /userdetails @john
-
-                /activeusers
-                → Users with current access.
-
-                /expiredusers
-                → Users without current access.
+                → Shows one user and assigned-story details.
 
                 🎭 ADMIN ROLE
                 /approveadmin @username
                 → USER becomes ADMIN.
-                Example: /approveadmin @john
-                Output: ✅ ADMIN APPROVED
 
                 /disapproveadmin @username
                 → ADMIN becomes USER.
-                Example: /disapproveadmin @john
-                Output: ✅ ADMIN DISAPPROVED
 
+                📚 STORY ACCESS
                 /storyaccess @username
-                → Opens story grant/revoke screen.
-                OWNER can manage USER and ADMIN.
+                → Grant/revoke stories for USER or ADMIN.
 
-                💳 USER ACCESS
-                /trial @username
-                → Gives default 7-day free trial.
-
-                /trial @username 15
-                → Gives 15-day free trial.
-
-                /activate @username monthly
-                → Activates MONTHLY plan for 30 days.
-
-                /activate @username yearly
-                → Activates YEARLY plan for 365 days.
-
-                /activate @username lifetime
-                → Activates LIFETIME plan.
-
-                /expire @username
-                → Expires current subscription rows.
-
-                /history @username
-                → Shows subscription history.
-
-                /updateuser
-                → Shows the short update command list.
-
-                🌍 GLOBAL FREE TRIAL
-                /trialonsubscription 2026-09-30
-                → Enables campaign; max 7 days per eligible user,
-                  never beyond campaign end date.
-
-                /trialoffsubscription
-                → Stops global free trial only.
+                OWNER rules:
+                • OWNER can access every story.
+                • OWNER episode usage is unlimited.
+                • ADMIN can use only OWNER-assigned stories.
+                • USER can use only OWNER/ADMIN-assigned stories.
+                • Subscription, trial and reward access are disabled.
 
                 📚 STORIES
                 /stories
                 → Owner story library.
 
                 /syncstories
-                → Syncs configured Telegram story channels.
+                → Refreshes stories already stored in this bot database.
 
                 /deleteinactivestory
                 → Deletes inactive stories after safety checks.
@@ -3439,9 +3402,6 @@ public class TelegramService {
                 🏠 PANEL
                 /panel
                 → Opens OWNER PANEL.
-
-                ℹ️ Both @username and Telegram ID are accepted
-                where a user target is required.
                 """);
     }
 
@@ -3453,34 +3413,26 @@ public class TelegramService {
                 /storyaccess @username
                 → Opens USER story grant/revoke screen.
 
-                Example:
-                /storyaccess @john
-
                 ADMIN rules:
                 • Can manage USER only.
                 • Can grant only stories OWNER assigned to this ADMIN.
                 • Cannot manage another ADMIN or OWNER.
+                • Subscription, trial and reward access are disabled.
 
                 🖼 STORY ICONS
                 /addstoryicon
                 → Shows only stories this ADMIN can manage.
-                Select one and send the image as a Telegram photo.
 
                 /removestoryicon
-                → Shows only manageable stories and removes an icon.
+                → Removes an icon from a manageable story.
+
+                📖 STORY LISTENING
+                Send: Tamil Stories
+                → Opens assigned story catalog.
 
                 🏠 PANEL
                 /panel
                 → Opens ADMIN PANEL.
-
-                📖 STORY LISTENING
-                Send: Tamil Stories
-                → Opens public story catalog.
-                Episode access still follows the current access rules.
-
-                ℹ️ /users, /trial, /activate, /expire,
-                /approveadmin, global trial and story sync commands
-                are OWNER-only.
                 """);
     }
 
@@ -3519,40 +3471,31 @@ public class TelegramService {
                 👑 OWNER PANEL
 
                 👥 USERS
-                /users → 50 users/page
+                /users → users list
                 /userdetails @username → user details
-                /activeusers → current access users
-                /expiredusers → no-current-access users
 
                 🎭 ADMINS & STORY ACCESS
                 /approveadmin @username → make ADMIN
                 /disapproveadmin @username → make USER
                 /storyaccess @username → grant/revoke stories
 
-                💳 INDIVIDUAL ACCESS
-                /trial @username → FREE 7 days
-                /trial @username 15 → FREE 15 days
-                /activate @username monthly → 30 days
-                /activate @username yearly → 365 days
-                /activate @username lifetime → lifetime
-                /expire @username → expire subscription
-                /history @username → subscription history
-                /updateuser → show shortcuts
-
-                🌍 GLOBAL FREE TRIAL
-                /trialonsubscription 2026-09-30 → enable
-                /trialoffsubscription → disable
-
                 📚 STORIES
                 /stories → owner library
-                /syncstories → sync channels
+                /syncstories → refresh saved channels
                 /deleteinactivestory → delete inactive
 
                 🖼 STORY ICONS
                 /addstoryicon → add/replace
                 /removestoryicon → remove
 
-                ℹ️ /usage → full examples + outputs
+                🔐 ACCESS MODEL
+                OWNER → all stories + unlimited
+                ADMIN → OWNER-assigned stories
+                USER → OWNER/ADMIN-assigned stories
+
+                Subscription / Trial / Reward → disabled
+
+                ℹ️ /usage → command guide
                 🏠 /panel → reopen OWNER PANEL
                 """);
     }
