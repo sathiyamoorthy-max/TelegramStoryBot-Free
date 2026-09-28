@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: telegram-storybot-free
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: TELEGRAM_OWNER_ID
+        sync: false
+      - key: TELEGRAM_OWNER_USERNAME
+        sync: false
+      - key: TELEGRAM_ADMIN_IDS
+        value: ""
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JPA_DDL_AUTO
+        value: update
+      - key: GROQ_INTENT_ENABLED
+        value: "false"
+      - key: GROQ_EPISODE_DETECTION_ENABLED
+        value: "false"
