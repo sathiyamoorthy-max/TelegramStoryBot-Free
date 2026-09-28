@@ -16,12 +16,10 @@ services:
         value: toonworldvsm2
       - key: TELEGRAM_ADMIN_IDS
         value: "1000931167,5115013713"
-      - key: DB_URL
-        sync: false
-      - key: DB_USERNAME
-        value: telegramstorybot_free_db_user
-      - key: DB_PASSWORD
-        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: telegramstorybot-free-db
+          property: connectionString
       - key: JPA_DDL_AUTO
         value: update
       - key: GROQ_INTENT_ENABLED
