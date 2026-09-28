@@ -25,6 +25,9 @@ public class StoryAccessService {
 
     private final UserStoryAccessRepository userStoryAccessRepository;
     private final StoryRepository storyRepository;
+    private final SubscriptionService subscriptionService;
+    private final GlobalTrialService globalTrialService;
+    private final RewardTrialService rewardTrialService;
 
     // =========================================
     // ACCESS CHECK
@@ -62,16 +65,58 @@ public class StoryAccessService {
     }
 
     /**
-     * Final listening authorization for this independent deployment.
+     * Final listening authorization. Story catalog visibility is public, but
+     * episode delivery is protected here.
      *
-     * OWNER -> every story.
-     * ADMIN -> only OWNER-assigned stories.
-     * USER  -> only stories assigned by OWNER/ADMIN.
+     * Priority:
+     * 1) OWNER -> every story
+     * 2) GLOBAL FREE TRIAL -> every active story for ADMIN and USER
+     * 3) ADMIN outside global trial -> only OWNER-assigned stories
+     * 4) USER with paid/manual subscription -> permanent UserStoryAccess mapping
+     * 5) USER with reward access -> only the one story selected on that RewardTrial
      *
-     * Subscription, global-trial and reward state are intentionally ignored.
+     * IMPORTANT:
+     * Global free trial grants CONTENT access only. It does not increase an
+     * ADMIN's ability to assign/manage stories for other users.
      */
     public boolean hasEpisodeAccess(TelegramUser user, Story story) {
-        return hasStoryAccess(user, story);
+
+        if (user == null || story == null || user.getRole() == null) {
+            return false;
+        }
+
+        // OWNER always has story content access.
+        if (user.getRole() == UserRole.OWNER) {
+            return true;
+        }
+
+        // During GLOBAL FREE TRIAL every ADMIN/USER can listen to every
+        // active story. Story.active is still enforced by TelegramService.
+        if (globalTrialService.hasGlobalTrialAccess(user)) {
+            return true;
+        }
+
+        // Outside global trial, ADMIN remains restricted to OWNER mappings.
+        if (user.getRole() == UserRole.ADMIN) {
+            return hasStoryAccess(user, story);
+        }
+
+        if (user.getRole() != UserRole.USER) {
+            return false;
+        }
+
+        // Paid plans and individual/manual FREE subscriptions use persistent
+        // OWNER/ADMIN story mappings.
+        if (subscriptionService.hasActiveSubscription(user)) {
+            return hasStoryAccess(user, story);
+        }
+
+        // Short-link reward is limited to ONE selected story for that reward row.
+        if (rewardTrialService.hasActiveRewardTrial(user)) {
+            return rewardTrialService.hasSelectedStoryAccess(user, story);
+        }
+
+        return false;
     }
 
     public long getAssignedStoryCount(TelegramUser user) {

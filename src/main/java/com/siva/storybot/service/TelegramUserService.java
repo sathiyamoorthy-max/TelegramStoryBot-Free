@@ -190,11 +190,6 @@ public class TelegramUserService {
             return UserRole.OWNER;
         }
 
-        if (telegramConfig.isConfiguredAdmin(telegramId)) {
-
-            return UserRole.ADMIN;
-        }
-
         return UserRole.USER;
     }
 

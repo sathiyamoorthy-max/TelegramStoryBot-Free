@@ -27,30 +27,4 @@ public class TelegramConfig {
 
     @Value("${telegram.owner.username}")
     private String ownerUsername;
-
-    @Value("${telegram.admin.ids:}")
-    private String adminIds;
-
-    public boolean isConfiguredAdmin(Long telegramId) {
-        if (telegramId == null || adminIds == null || adminIds.isBlank()) {
-            return false;
-        }
-
-        for (String rawId : adminIds.split(",")) {
-            String value = rawId == null ? "" : rawId.trim();
-            if (value.isBlank()) {
-                continue;
-            }
-
-            try {
-                if (telegramId.equals(Long.valueOf(value))) {
-                    return true;
-                }
-            } catch (NumberFormatException ignored) {
-                // Ignore malformed optional bootstrap IDs.
-            }
-        }
-
-        return false;
-    }
 }

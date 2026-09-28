@@ -20,6 +20,7 @@ public class TelegramRoleCommandRegistrar {
         return List.of(
                 new BotCommand("start", "Open Story Bot"),
                 new BotCommand("panel", "Open your menu"),
+                new BotCommand("reward", "Get 1 hour reward access"),
                 new BotCommand("help", "Help and support")
         );
     }
@@ -40,44 +41,72 @@ public class TelegramRoleCommandRegistrar {
         return List.of(
                 new BotCommand("start", "Open owner panel"),
                 new BotCommand("panel", "Open owner panel"),
-                new BotCommand("users", "View users"),
+
+                new BotCommand("users", "View users - 50 per page"),
                 new BotCommand("userdetails", "View one user details"),
+                new BotCommand("activeusers", "View users with current access"),
+                new BotCommand("expiredusers", "View users without current access"),
+
                 new BotCommand("approveadmin", "Promote USER to ADMIN"),
                 new BotCommand("disapproveadmin", "Change ADMIN back to USER"),
-                new BotCommand("storyaccess", "Manage story access"),
+                new BotCommand("storyaccess", "Manage USER or ADMIN story access"),
+
+                new BotCommand("history", "View subscription history"),
+                new BotCommand("trial", "Give individual free trial"),
+                new BotCommand("activate", "Activate paid plan"),
+                new BotCommand("expire", "Expire current subscription"),
+                new BotCommand("updateuser", "Show user update shortcuts"),
+
+                new BotCommand("trialonsubscription", "Enable global free trial"),
+                new BotCommand("trialoffsubscription", "Disable global free trial"),
+
                 new BotCommand("stories", "View owner story library"),
                 new BotCommand("syncstories", "Sync story channels"),
                 new BotCommand("deleteinactivestory", "Delete inactive stories"),
                 new BotCommand("addstoryicon", "Add or replace story icon"),
                 new BotCommand("removestoryicon", "Remove story icon"),
-                new BotCommand("usage", "View owner command examples"),
+
+                new BotCommand("usage", "View all owner command examples"),
                 new BotCommand("help", "View owner help")
         );
     }
 
     public void registerDefaultCommands(TelegramLongPollingBot bot) throws Exception {
-        register(bot, getUserCommands(), new BotCommandScopeDefault());
+        validateCommands("DEFAULT", getUserCommands());
+
+        SetMyCommands request = new SetMyCommands();
+        request.setCommands(getUserCommands());
+        request.setScope(new BotCommandScopeDefault());
+        bot.execute(request);
+
+        log.info("Default USER Telegram commands registered count={}", getUserCommands().size());
     }
 
-    public void registerOwnerCommands(TelegramLongPollingBot bot, Long chatId) throws Exception {
-        if (chatId == null) throw new IllegalArgumentException("OWNER chatId cannot be null");
-        register(bot, getOwnerCommands(), new BotCommandScopeChat(String.valueOf(chatId)));
+    public void registerOwnerCommands(TelegramLongPollingBot bot, Long ownerId) throws Exception {
+        if (ownerId == null) {
+            throw new IllegalStateException("Telegram ownerId is not configured");
+        }
+
+        registerChatCommands(bot, ownerId, getOwnerCommands(), "OWNER");
     }
 
     public void registerAdminCommands(TelegramLongPollingBot bot, Long chatId) throws Exception {
-        if (chatId == null) throw new IllegalArgumentException("ADMIN chatId cannot be null");
-        register(bot, getAdminCommands(), new BotCommandScopeChat(String.valueOf(chatId)));
+        registerChatCommands(bot, chatId, getAdminCommands(), "ADMIN");
     }
 
     public void registerUserCommands(TelegramLongPollingBot bot, Long chatId) throws Exception {
-        if (chatId == null) throw new IllegalArgumentException("USER chatId cannot be null");
-        register(bot, getUserCommands(), new BotCommandScopeChat(String.valueOf(chatId)));
+        registerChatCommands(bot, chatId, getUserCommands(), "USER");
     }
 
     public void syncCommandsForUser(TelegramLongPollingBot bot, TelegramUser user) {
-        if (bot == null || user == null || user.getRole() == null) return;
+        if (bot == null || user == null || user.getRole() == null) {
+            return;
+        }
+
         Long chatId = user.getChatId() != null ? user.getChatId() : user.getTelegramId();
-        if (chatId == null) return;
+        if (chatId == null) {
+            return;
+        }
 
         try {
             if (user.getRole() == UserRole.OWNER) {
@@ -88,19 +117,51 @@ public class TelegramRoleCommandRegistrar {
                 registerUserCommands(bot, chatId);
             }
         } catch (Exception e) {
-            log.warn("Unable to sync command menu telegramId={} role={} reason={}",
+            log.warn("Unable to sync Telegram command menu telegramId={} role={} reason={}",
                     user.getTelegramId(), user.getRole(), e.getMessage());
         }
     }
 
-    private void register(TelegramLongPollingBot bot, List<BotCommand> commands, Object scope) throws Exception {
+    private void registerChatCommands(
+            TelegramLongPollingBot bot,
+            Long chatId,
+            List<BotCommand> commands,
+            String scopeName) throws Exception {
+
+        if (chatId == null) {
+            throw new IllegalArgumentException(scopeName + " chatId cannot be null");
+        }
+
+        validateCommands(scopeName, commands);
+
         SetMyCommands request = new SetMyCommands();
         request.setCommands(commands);
-        if (scope instanceof BotCommandScopeDefault defaultScope) {
-            request.setScope(defaultScope);
-        } else if (scope instanceof BotCommandScopeChat chatScope) {
-            request.setScope(chatScope);
-        }
+        request.setScope(new BotCommandScopeChat(String.valueOf(chatId)));
         bot.execute(request);
+
+        log.info("{} Telegram commands registered chatId={} count={}", scopeName, chatId, commands.size());
+    }
+
+    private void validateCommands(String scope, List<BotCommand> commands) {
+        if (commands == null || commands.isEmpty()) {
+            throw new IllegalArgumentException("Telegram command list cannot be empty scope=" + scope);
+        }
+
+        for (BotCommand botCommand : commands) {
+            if (botCommand == null) {
+                throw new IllegalArgumentException("Telegram command cannot be null scope=" + scope);
+            }
+
+            String command = botCommand.getCommand();
+            String description = botCommand.getDescription();
+
+            if (command == null || !command.matches("^[a-z0-9_]{1,32}$")) {
+                throw new IllegalArgumentException("Invalid Telegram command scope=" + scope + " command=" + command);
+            }
+
+            if (description == null || description.isBlank() || description.length() > 256) {
+                throw new IllegalArgumentException("Invalid Telegram command description command=" + command);
+            }
+        }
     }
 }

@@ -380,34 +380,6 @@ public class TelegramService {
 
             String text = message.getText().trim();
 
-            // This deployment uses OWNER/ADMIN story assignment only.
-            // Subscription, trial and reward commands are intentionally disabled.
-            String disabledAccessCommand = text.split("\\s+", 2)[0].toLowerCase();
-
-            if (Set.of(
-                    "/reward",
-                    "/freehour",
-                    "/trial",
-                    "/activate",
-                    "/expire",
-                    "/history",
-                    "/activeusers",
-                    "/expiredusers",
-                    "/trialonsubscription",
-                    "/trialoffsubscription")
-                    .contains(disabledAccessCommand)) {
-
-                sendMessage(bot, chatId, """
-                        ℹ️ Subscription, trial and reward access are disabled.
-
-                        👑 OWNER: all stories + unlimited usage
-                        🛡 ADMIN: OWNER-assigned stories
-                        👤 USER: OWNER/ADMIN-assigned stories
-                        """);
-                return;
-            }
-
-
             // =====================================
             // REWARDED 1-HOUR FREE ACCESS
             //
@@ -562,7 +534,7 @@ public class TelegramService {
             // Episode requests are checked separately above.
             // =====================================
 
-            boolean active = telegramUser != null;
+            boolean active = subscriptionService.hasAccess(telegramUser);
 
             if (!active) {
                 sendSubscriptionRequiredMessage(bot, chatId, userMessageId);
@@ -1263,7 +1235,7 @@ public class TelegramService {
             // NON-BROWSE CALLBACK ACCESS CHECK
             // =====================================
 
-            boolean active = user != null;
+            boolean active = subscriptionService.hasAccess(user);
 
             if (!active) {
                 sendSubscriptionRequiredMessage(bot, chatId, messageId);
@@ -3362,32 +3334,69 @@ public class TelegramService {
                 → Shows users, 50 per page.
 
                 /userdetails @username
-                → Shows one user and assigned-story details.
+                → Shows role, access, plan and story count.
+                Example: /userdetails @john
+
+                /activeusers
+                → Users with current access.
+
+                /expiredusers
+                → Users without current access.
 
                 🎭 ADMIN ROLE
                 /approveadmin @username
                 → USER becomes ADMIN.
+                Example: /approveadmin @john
+                Output: ✅ ADMIN APPROVED
 
                 /disapproveadmin @username
                 → ADMIN becomes USER.
+                Example: /disapproveadmin @john
+                Output: ✅ ADMIN DISAPPROVED
 
-                📚 STORY ACCESS
                 /storyaccess @username
-                → Grant/revoke stories for USER or ADMIN.
+                → Opens story grant/revoke screen.
+                OWNER can manage USER and ADMIN.
 
-                OWNER rules:
-                • OWNER can access every story.
-                • OWNER episode usage is unlimited.
-                • ADMIN can use only OWNER-assigned stories.
-                • USER can use only OWNER/ADMIN-assigned stories.
-                • Subscription, trial and reward access are disabled.
+                💳 USER ACCESS
+                /trial @username
+                → Gives default 7-day free trial.
+
+                /trial @username 15
+                → Gives 15-day free trial.
+
+                /activate @username monthly
+                → Activates MONTHLY plan for 30 days.
+
+                /activate @username yearly
+                → Activates YEARLY plan for 365 days.
+
+                /activate @username lifetime
+                → Activates LIFETIME plan.
+
+                /expire @username
+                → Expires current subscription rows.
+
+                /history @username
+                → Shows subscription history.
+
+                /updateuser
+                → Shows the short update command list.
+
+                🌍 GLOBAL FREE TRIAL
+                /trialonsubscription 2026-09-30
+                → Enables campaign; max 7 days per eligible user,
+                  never beyond campaign end date.
+
+                /trialoffsubscription
+                → Stops global free trial only.
 
                 📚 STORIES
                 /stories
                 → Owner story library.
 
                 /syncstories
-                → Refreshes stories already stored in this bot database.
+                → Syncs configured Telegram story channels.
 
                 /deleteinactivestory
                 → Deletes inactive stories after safety checks.
@@ -3402,6 +3411,9 @@ public class TelegramService {
                 🏠 PANEL
                 /panel
                 → Opens OWNER PANEL.
+
+                ℹ️ Both @username and Telegram ID are accepted
+                where a user target is required.
                 """);
     }
 
@@ -3413,26 +3425,34 @@ public class TelegramService {
                 /storyaccess @username
                 → Opens USER story grant/revoke screen.
 
+                Example:
+                /storyaccess @john
+
                 ADMIN rules:
                 • Can manage USER only.
                 • Can grant only stories OWNER assigned to this ADMIN.
                 • Cannot manage another ADMIN or OWNER.
-                • Subscription, trial and reward access are disabled.
 
                 🖼 STORY ICONS
                 /addstoryicon
                 → Shows only stories this ADMIN can manage.
+                Select one and send the image as a Telegram photo.
 
                 /removestoryicon
-                → Removes an icon from a manageable story.
-
-                📖 STORY LISTENING
-                Send: Tamil Stories
-                → Opens assigned story catalog.
+                → Shows only manageable stories and removes an icon.
 
                 🏠 PANEL
                 /panel
                 → Opens ADMIN PANEL.
+
+                📖 STORY LISTENING
+                Send: Tamil Stories
+                → Opens public story catalog.
+                Episode access still follows the current access rules.
+
+                ℹ️ /users, /trial, /activate, /expire,
+                /approveadmin, global trial and story sync commands
+                are OWNER-only.
                 """);
     }
 
@@ -3471,31 +3491,40 @@ public class TelegramService {
                 👑 OWNER PANEL
 
                 👥 USERS
-                /users → users list
+                /users → 50 users/page
                 /userdetails @username → user details
+                /activeusers → current access users
+                /expiredusers → no-current-access users
 
                 🎭 ADMINS & STORY ACCESS
                 /approveadmin @username → make ADMIN
                 /disapproveadmin @username → make USER
                 /storyaccess @username → grant/revoke stories
 
+                💳 INDIVIDUAL ACCESS
+                /trial @username → FREE 7 days
+                /trial @username 15 → FREE 15 days
+                /activate @username monthly → 30 days
+                /activate @username yearly → 365 days
+                /activate @username lifetime → lifetime
+                /expire @username → expire subscription
+                /history @username → subscription history
+                /updateuser → show shortcuts
+
+                🌍 GLOBAL FREE TRIAL
+                /trialonsubscription 2026-09-30 → enable
+                /trialoffsubscription → disable
+
                 📚 STORIES
                 /stories → owner library
-                /syncstories → refresh saved channels
+                /syncstories → sync channels
                 /deleteinactivestory → delete inactive
 
                 🖼 STORY ICONS
                 /addstoryicon → add/replace
                 /removestoryicon → remove
 
-                🔐 ACCESS MODEL
-                OWNER → all stories + unlimited
-                ADMIN → OWNER-assigned stories
-                USER → OWNER/ADMIN-assigned stories
-
-                Subscription / Trial / Reward → disabled
-
-                ℹ️ /usage → command guide
+                ℹ️ /usage → full examples + outputs
                 🏠 /panel → reopen OWNER PANEL
                 """);
     }
@@ -4258,7 +4287,10 @@ public class TelegramService {
             // Reward users may browse every story. The FIRST playable story
             // they select during the active reward becomes the one reward-scoped
             // story. Selecting another story later does not replace it.
-            boolean rewardOnlyAccess = false;
+            boolean rewardOnlyAccess = isNormalUser(requestingUser)
+                    && !subscriptionService.hasActiveSubscription(requestingUser)
+                    && !globalTrialService.hasGlobalTrialAccess(requestingUser)
+                    && rewardTrialService.hasActiveRewardTrial(requestingUser);
 
             RewardTrialService.RewardStorySelection rewardSelection = null;
 
@@ -4461,7 +4493,7 @@ public class TelegramService {
             // Story names are public, but audio requests require BOTH:
             // 1) an active access source, and
             // 2) permission for this exact story.
-            if (requestingUser == null) {
+            if (!subscriptionService.hasAccess(requestingUser)) {
                 sendSubscriptionRequiredMessage(bot, chatId, null);
                 return;
             }
@@ -5538,7 +5570,7 @@ public class TelegramService {
                 // If OWNER disables the global free trial while a
                 // 50-episode batch is already being sent, a normal
                 // USER must stop receiving files immediately.
-                if (requestingUser == null) {
+                if (!subscriptionService.hasAccess(requestingUser)) {
 
                     log.info("Episode batch stopped because access ended telegramId={} storyId={} sentCount={}", requestingUser != null ? requestingUser.getTelegramId() : null, story.getId(), sentCount);
 
